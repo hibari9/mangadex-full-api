@@ -33,6 +33,11 @@ class Agent {
          * This agent's user object. Filled by agent.fillUser()
          */
         this.user = new User();
+
+        /**
+         * Domain override for replacing "mangadex.org" with another domain.
+         */
+        this.domainOverride = null;
     }
 
     /**
@@ -62,6 +67,7 @@ class Agent {
                 method: "POST",
                 headers: {
                     "referer": "https://mangadex.org/login",
+                    "Access-Control-Allow-Origin": "*",
                     "User-Agent": "mangadex-full-api",
                     "X-Requested-With": "XMLHttpRequest",
                     "Content-Type": "multipart/form-data; boundary=" + boundary
@@ -195,6 +201,7 @@ class Agent {
                 method: "POST",
                 headers: {
                     referer: "https://mangadex.org/messages/send",
+                    "Access-Control-Allow-Origin": "*",
                     "User-Agent": "mangadex-full-api",
                     "X-Requested-With": "XMLHttpRequest",
                     "Content-Type": "multipart/form-data; boundary=" + boundary,
@@ -218,7 +225,7 @@ class Agent {
     fillUser() {
         return new Promise((resolve, reject) => {
             Util.getMatches("https://mangadex.org", {
-                "userid": /<a.+href=["']\/user\/(\d+)\/[^"']+["'].+class="[^"']+dropdown-toggle".+>/gmi             
+                "userid": /<a[^>]*href=["']\/user\/(\d+)\/[^"']+["'][^>]*class="[^"']+dropdown-toggle"[^>]*>/gmi             
             }).then((m) => {
                 if (!m.userid) reject("Cannot find User ID. Is the agent logged in?");
                 this.user.fill(m.userid).then(resolve).catch(reject);
@@ -232,8 +239,8 @@ class Agent {
     getHistory() {
         return new Promise((resolve, reject) => {
             Util.getMatches("https://mangadex.org/history", {
-                "ids": /<a.+class=["'][^'"]*manga_title[^'"]*["'].+title=["'][^'"]+["'].+href=["']\/title\/(\d+)\/[^'"]+["'].+<\/a>/gmi,
-                "titles":  /<a.+class=["'][^'"]*manga_title[^'"]*["'].+title=["']([^'"]+)["'].+href=["']\/title\/\d+\/[^'"]+["'].+<\/a>/gmi
+                "ids": /<a[^>]*class=["'][^'"]*manga_title[^'"]*["'][^>]*title=["'][^'"]+["'][^>]*href=["']\/title\/(\d+)\/[^'"]+["'].+<\/a>/gmi,
+                "titles":  /<a[^>]*class=["'][^'"]*manga_title[^'"]*["'][^>]*title=["']([^'"]+)["'][^>]*href=["']\/title\/\d+\/[^'"]+["'].+<\/a>/gmi
             }).then((m) => {
                 if (!m.ids) m.ids = [];
                 let history = [];

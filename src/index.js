@@ -15,6 +15,7 @@ module.exports = {
     Post: require("./structure/post"),
     Home: require("./structure/home"),
     MDList: require("./structure/mdlist"),
+    MDNet: require("./structure/mdnet"),
     
     Util: require("./util"),
 
@@ -28,6 +29,7 @@ module.exports = {
     demographic: require("./enum/demographic"),
     pubStatus: require("./enum/pubstatus"),
     listingOrder: require("./enum/listing-order"),
+    viewingCategories: require("./enum/viewing-categories"),
 
     // Re-add to maintain hints
     agent: agentInstance

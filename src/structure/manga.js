@@ -109,10 +109,23 @@ class Manga extends APIObject {
         this.views = data.views ? parseInt(data.views.replace(/\D/g, "")) : undefined;
 
         /**
-         * Bayesian Rating (Web Parsing)
+         * Bayesian Rating
          * @type {String}
          */
-        this.rating = data.rating ? parseFloat(data.rating) : undefined;
+        // Parse float is needed because MD returns ratings as strings for some reason.
+        this.rating = data.manga.rating.bayesian ? parseFloat(data.manga.rating.bayesian) : undefined;
+
+        /**
+         * Mean Rating
+         * @type {String}
+         */
+        this.ratingMean = data.manga.rating.mean ? parseFloat(data.manga.rating.mean) : undefined;
+
+        /**
+         * Number of Users who have Rated
+         * @type {String}
+         */
+        this.ratingUserCount = data.manga.rating.users ? parseFloat(data.manga.rating.users) : undefined;
 
         /**
          * Alternate Titles (Web Parsing)
@@ -123,6 +136,13 @@ class Manga extends APIObject {
             this.altTitles = [];
             for (let i of data.altTitles) this.altTitles.push(decodeURI(i));
         }
+
+        /**
+         * URL to manga homepage
+         * @type {String}
+         */
+        if (this.id) this.url = "https://mangadex.org/title/" + this.id;
+        else this.url = undefined;
     }
 
     fill(id) {
@@ -150,8 +170,7 @@ class Manga extends APIObject {
 
             Util.getMatches(web + id.toString(), {
                 "views": /title=["']views["']\D+(\d[\d,.]+)<\/li>/gmi,
-                "rating": /title=["']Bayesian rating["']\D+(\d[\d,.]+)/gmi,
-                "altTitles": /<li [^>]+><span[^>]+fa-book[\s"'][^>]+><\/span>([^<]+)<\/li>/gmi
+                "altTitles": /<li [^>]*><span[^>]*fa-book[\s"'][^>]*><\/span>([^<]+)<\/li>/gmi
             }).then((matches) => {
                 obj = {...obj, ...matches};
                 finish(this, resolve);
@@ -220,7 +239,7 @@ class Manga extends APIObject {
      * @param {String} query Quicksearch query like a name or description
      */
     static search(query) {
-        const regex = /<a.+href=["']\/title\/(\d+)\/\S+["'].+class=["'].+manga_title.+["']>.+<\/a>/gmi;
+        const regex = /<a[^>]*href=["']\/title\/(\d+)\/\S+["'][^>]*manga_title[^>]*>/gmi;
         return Util.quickSearch(query, regex);
     }
     
@@ -290,18 +309,17 @@ class Manga extends APIObject {
 
             if ("order" in searchObj) {
                 let sOrder = 0;
-                if (typeof searchObj.order === "string") {
-                    let orderKey = Util.getKeyByValue(searchOrder, searchObj.order);
-                    if (orderKey) sOrder = orderKey;
+                if (typeof searchObj.order === "string" && searchObj.order in searchOrder) {
+                    sOrder = searchOrder[searchObj.order];
                 } else if (typeof searchObj.order === "number") sOrder = searchObj.order;
                 url += "s=" + sOrder; // Last append, so no '&'
             }
             
             if (url.endsWith("&")) url = url.substr(0, url.length - 1);
-            
+
             Util.getMatches(url, {
-                "id": /<a.+class=["'].+manga_title.+["'].+href=["']\/title\/(\d+)\/\S+["'].*>/gmi,
-                "title": /<a.+class=["'].+manga_title.+["'].+>(.+)<\/a>/gmi
+                "id": /<a[^>]*href=["']\/title\/(\d+)\/\S+["'][^>]*>[^<]+/gmi,
+                "title": /<a[^>]*href=["']\/title\/\d+\/\S+["'][^>]*>([^<]+)/gmi
             }).then((matches) => {
                 if (!matches.id) resolve([]);
                 

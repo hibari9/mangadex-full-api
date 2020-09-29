@@ -10,25 +10,32 @@ module.exports = {
     getHTTPS: function(url) {
         return new Promise((resolve, reject) => {
             if (!url) reject("No URL.");
+
+            if (index.agent.domainOverride) url = url.replace("mangadex.org", index.agent.domainOverride);
+
             let options = {
                 headers: {
                     "User-Agent": "mangadex-full-api",
-                    "Cookie": ""
+                    "Cookie": "",
+                    "Access-Control-Allow-Origin": "*"
                 }
             };
             
             if (index.agent.sessionId) options.headers.Cookie += "mangadex_session=" + index.agent.sessionId + "; ";
             if (index.agent.persistentId) options.headers.Cookie += "mangadex_rememberme_token=" + index.agent.persistentId + "; ";
-            options.headers.Cookie += "mangadex_h_toggle=" + index.agent.hentaiSetting;
+            options.headers.Cookie += "mangadex_h_toggle=" + index.agent.hentaiSetting + "; ";
+            options.headers.Cookie += "mangadex_title_mode=2"; // If there's no agent, this will have 100 manga per MDList page
 
             https.get(new URL(url), options, (res) => {
                 // Update current session token if new one is given.
-                for (let i of res.headers["set-cookie"]) {
-                    let m = (/mangadex_session=([^;]+);.+expires=([^;]+)/gmi).exec(i);
-                    if (m && m.length >= 3) {
-                        index.agent.sessionId = m[1];
-                        index.agent.sessionExpiration = new Date(m[2]);
-                        break;
+                if ("set-cookie" in res.headers) {
+                    for (let i of res.headers["set-cookie"]) {
+                        let m = (/mangadex_session=([^;]+);.+expires=([^;]+)/gmi).exec(i);
+                        if (m && m.length >= 3) {
+                            index.agent.sessionId = m[1];
+                            index.agent.sessionExpiration = new Date(m[2]);
+                            break;
+                        }
                     }
                 }
 
@@ -37,6 +44,7 @@ module.exports = {
 
                 if (res.statusCode == 503 || res.statusCode == 502 || res.statusCode == 403) reject(`MangaDex is currently in DDOS mitigation mode. (Status code ${res.statusCode})`);
                 else if (res.statusCode >= 500) reject(`MangaDex is currently unavailable. (Status code ${res.statusCode})`);
+                else if (res.statusCode == 404) reject("Cannot reach Mangadex.org (404). Use agent.domainOverride for a mirror.");
 
                 res.on('data', (data) => {
                     payload += data;
@@ -104,9 +112,9 @@ module.exports = {
             if (!query || !regex) reject("Invalid Arguments.");
             module.exports.getMatches(url + encodeURIComponent(query), {
                 "results": regex,
-                "error": /Certain features disabled for guests during DDoS mitigation/gmi
+                "error": /<!-- login_container -->/gmi // Only appears when not logged in.
             }).then(matches => {
-                if (matches.error != undefined) reject("MangaDex is in DDOS mitigation mode. No search available. Using agent?");
+                if (matches.error != undefined) reject("MangaDex is in DDOS mitigation mode. No search available. Not using agent?");
 
                 if (!matches.results) matches.results = [];
                 if (!(matches.results instanceof Array)) matches.results = [matches.results];
